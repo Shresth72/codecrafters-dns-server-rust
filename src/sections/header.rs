@@ -4,6 +4,8 @@ use bytes::{BufMut, BytesMut};
 use nom::IResult;
 use std::net::{SocketAddr, UdpSocket};
 
+use crate::sections::question::{Question, QuestionClass, QuestionType};
+
 #[derive(Debug, Clone)]
 pub struct MessageHeader {
     pub id: u16,
@@ -22,6 +24,38 @@ pub struct MessageHeader {
 }
 
 impl MessageHeader {
+    pub fn new(
+        id: u16,
+        qr: QueryResponseIndicator,
+        op: OpCode,
+        aa: bool,
+        tc: bool,
+        rd: bool,
+        ra: bool,
+        z: u8,
+        rcode: u8,
+        qdcount: u16,
+        ancount: u16,
+        nscount: u16,
+        arcount: u16,
+    ) -> Self {
+        Self {
+            id,
+            qr,
+            op,
+            aa,
+            tc,
+            rd,
+            ra,
+            z,
+            rcode,
+            qdcount,
+            ancount,
+            nscount,
+            arcount,
+        }
+    }
+
     pub fn to_bytes(&self) -> [u8; 12] {
         let mut bytes = [0; 12];
 
@@ -58,6 +92,23 @@ impl MessageHeader {
 #[derive(Debug, Clone)]
 pub struct Message {
     pub header: MessageHeader,
+    pub questions: Vec<Question>,
+}
+
+impl Message {
+    pub fn new(header: MessageHeader, questions: Vec<Question>) -> Self {
+        Self { 
+            header,
+            questions
+        }
+    }
+
+    pub fn to_bytes(&self, bytes: &mut BytesMut) {
+        bytes.put_slice(&self.header.to_bytes());
+        for question in &self.questions {
+            question.to_bytes(bytes);
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

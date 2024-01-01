@@ -53,7 +53,7 @@ use std::net::{SocketAddr, UdpSocket};
     +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
 */
 
-/* Question Section
+/* Question Structure
     The question section is used to carry the "question" in most queries,
     i.e., the parameters that define what is being asked.  The section
     contains QDCOUNT (usually 1) entries.
@@ -69,76 +69,14 @@ use std::net::{SocketAddr, UdpSocket};
     +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
     |                     QCLASS                    |
     +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+    <length><content>/<nullbyte>
+    Eg: google.com is encoded as \x06google\x03com\x00
 */
 
-#[derive(Debug, Clone)]
-struct MessageHeader {
-    id: u16,
-    qr: QueryResponseIndicator,
-    op: OpCode,
-    aa: bool,
-    tc: bool,
-    rd: bool,
-    ra: bool,
-    z: u8,
-    rcode: u8,
-    qdcount: u16,
-    ancount: u16,
-    nscount: u16,
-    arcount: u16,
-}
-
-impl MessageHeader {
-    fn to_bytes(&self) -> [u8; 12] {
-        let mut bytes = [0; 12];
-
-        bytes[0] = (self.id >> 8) as u8;
-        bytes[1] = self.id as u8;
-
-        bytes[2] = match self.qr { // Query Response Indicator
-            QueryResponseIndicator::Query => 0,
-            QueryResponseIndicator::Response => 1,
-        } << 7 // shift left 7 bits to get the first bit (MSB)
-            | (self.op as u8) << 3
-            | (self.aa as u8) << 2
-            | (self.tc as u8) << 1
-            | (self.rd as u8);
-
-        bytes[3] = (self.ra as u8) << 7 | self.z << 4 | self.rcode;
-
-        bytes[4] = (self.qdcount >> 8) as u8;
-        bytes[5] = self.qdcount as u8;
-
-        bytes[6] = (self.ancount >> 8) as u8;
-        bytes[7] = self.ancount as u8;
-
-        bytes[8] = (self.nscount >> 8) as u8;
-        bytes[9] = self.nscount as u8;
-
-        bytes[10] = (self.arcount >> 8) as u8;
-        bytes[11] = self.arcount as u8;
-
-        bytes
-    }
-}
-
-#[derive(Debug, Clone)]
-struct Message {
-    header: MessageHeader,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum QueryResponseIndicator {
-    Query,
-    Response,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum OpCode {
-    Query, 
-    InverseQuery,
-    Status,
-}
+mod sections;
+use sections::header::*;
+use sections::question::*;
 
 fn main() -> anyhow::Result<()> {
     let addr = "127.0.0.1:2053";
@@ -158,6 +96,13 @@ fn main() -> anyhow::Result<()> {
 fn handle_packet(packet: &[u8], source: SocketAddr, socket: &UdpSocket) -> anyhow::Result<()> {
     eprintln!("Received {} bytes from {}", packet.len(), source);
 
+    let mut bytes = BytesMut::with_capacity(512);
+    let questions = vec![Question::new(
+        "google.com", 
+        QuestionType::A, 
+        QuestionClass::IN    
+    )];
+
     let response = Message {
         header: MessageHeader {
             id: 1234, 
@@ -174,9 +119,10 @@ fn handle_packet(packet: &[u8], source: SocketAddr, socket: &UdpSocket) -> anyho
             nscount: 0,
             arcount: 0,
         },
+        questions: questions.clone(),
     };
-
-    let response = response.header.to_bytes();
+    
+    response.to_bytes(&mut bytes);
     socket
         .send_to(&response, source) // sending data over a UDP socket to the source
         .expect("Failed to send response");
