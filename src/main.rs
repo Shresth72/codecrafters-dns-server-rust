@@ -123,6 +123,7 @@ fn handle_packet(packet: &[u8], source: SocketAddr, socket: &UdpSocket) -> anyho
         question: question.clone(),
     };
     dns_message.to_bytes(&mut response_bytes);
+    
 
     socket
         .send_to(&response_bytes, source) // sending data over a UDP socket to the source
