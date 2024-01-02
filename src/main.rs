@@ -97,13 +97,14 @@ fn handle_packet(packet: &[u8], source: SocketAddr, socket: &UdpSocket) -> anyho
     eprintln!("Received {} bytes from {}", packet.len(), source);
 
     let mut bytes = BytesMut::with_capacity(512);
-    let questions = vec![Question::new(
+
+    let questions = Question::new(
         "google.com", 
         QuestionType::A, 
         QuestionClass::IN    
-    )];
+    );
 
-    let response = Message {
+    let header = Message {
         header: MessageHeader {
             id: 1234, 
             qr: QueryResponseIndicator::Response,
@@ -119,12 +120,13 @@ fn handle_packet(packet: &[u8], source: SocketAddr, socket: &UdpSocket) -> anyho
             nscount: 0,
             arcount: 0,
         },
-        questions: questions.clone(),
     };
     
-    response.to_bytes(&mut bytes);
+    header.to_bytes(&mut bytes);
+    questions.to_bytes(&mut bytes);
+
     socket
-        .send_to(&response, source) // sending data over a UDP socket to the source
+        .send_to(&bytes, source) // sending data over a UDP socket to the source
         .expect("Failed to send response");
 
     Ok(())
