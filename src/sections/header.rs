@@ -92,17 +92,20 @@ impl MessageHeader {
 #[derive(Debug, Clone)]
 pub struct Message {
     pub header: MessageHeader,
+    pub question: Question,
 }
 
 impl Message {
-    pub fn new(header: MessageHeader) -> Self {
+    pub fn new(header: MessageHeader, question: Question) -> Self {
         Self { 
             header,
+            question,
         }
     }
 
     pub fn to_bytes(&self, bytes: &mut BytesMut) {
         bytes.put_slice(&self.header.to_bytes());
+        self.question.to_bytes(bytes);
     }
 }
 

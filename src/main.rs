@@ -96,15 +96,15 @@ fn main() -> anyhow::Result<()> {
 fn handle_packet(packet: &[u8], source: SocketAddr, socket: &UdpSocket) -> anyhow::Result<()> {
     eprintln!("Received {} bytes from {}", packet.len(), source);
 
-    let mut bytes = BytesMut::with_capacity(512);
+    let mut response_bytes = BytesMut::with_capacity(512);
 
-    let questions = Question::new(
+    let question = Question::new(
         "google.com", 
         QuestionType::A, 
         QuestionClass::IN    
     );
 
-    let header = Message {
+    let dns_message = Message {
         header: MessageHeader {
             id: 1234, 
             qr: QueryResponseIndicator::Response,
@@ -120,13 +120,12 @@ fn handle_packet(packet: &[u8], source: SocketAddr, socket: &UdpSocket) -> anyho
             nscount: 0,
             arcount: 0,
         },
+        question: question.clone(),
     };
-    
-    header.to_bytes(&mut bytes);
-    questions.to_bytes(&mut bytes);
+    dns_message.to_bytes(&mut response_bytes);
 
     socket
-        .send_to(&bytes, source) // sending data over a UDP socket to the source
+        .send_to(&response_bytes, source) // sending data over a UDP socket to the source
         .expect("Failed to send response");
 
     Ok(())

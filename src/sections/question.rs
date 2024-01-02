@@ -55,6 +55,7 @@ impl Question {
         self.qname.to_bytes(bytes);
         bytes.put_u16(self.qtype as u16);
         bytes.put_u16(self.qclass as u16);
+        eprint!("Question: {:?}", self.qname);
     }
 }
 
